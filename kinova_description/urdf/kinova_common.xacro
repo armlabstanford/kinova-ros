@@ -95,6 +95,7 @@
         </xacro:if>
         <origin xyz="${joint_origin_xyz}" rpy="${joint_origin_rpy}"/>
         <dynamics damping="0.0" friction="0.0"/>
+        <!-- <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> -->
      </joint>
    <xacro:unless value="${fixed}">
      <transmission name="${joint_name}_trans">
@@ -103,7 +104,7 @@
           <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
         </joint>
         <actuator name="${joint_name}_actuator">
-          <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+          <!-- <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> -->
         <mechanicalReduction>160</mechanicalReduction>
         </actuator>
      </transmission>
@@ -153,10 +154,10 @@
 		    <transmission name="${prefix}joint_finger_${finger_number}_trans">
 					<type>transmission_interface/SimpleTransmission</type>
 					<joint name="${prefix}joint_finger_${finger_number}">
-					  <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
 					</joint>
 					<actuator name="${prefix}joint_finger_${finger_number}_actuator">
-					<hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+					<!-- <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> -->
 					<mechanicalReduction>1</mechanicalReduction>
 					</actuator>
 		    </transmission>
@@ -178,7 +179,7 @@
 					  <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
 					</joint>
 					<actuator name="${prefix}joint_finger_tip_${finger_number}_actuator">
-					<hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+					<!-- <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface> -->
 					<mechanicalReduction>1</mechanicalReduction>
 					</actuator>
         </transmission>
