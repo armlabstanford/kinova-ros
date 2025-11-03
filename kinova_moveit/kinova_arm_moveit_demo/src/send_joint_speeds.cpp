@@ -11,6 +11,7 @@
 #include <kinova_msgs/JointVelocity.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <sensor_msgs/JointState.h>
+#include <sensor_msgs/Joy.h>
 #include <ros/console.h>
 #include <eigen3/Eigen/Dense>
 
@@ -24,26 +25,39 @@ public:
     JointCommander();
     void jointsCallback(const sensor_msgs::JointState& msg);
     void jointsVelCallback(const kinova_msgs::JointVelocity& msg);
+    void joyCallback(const sensor_msgs::Joy& msg);
+    void modeCallback(int mode);
     void mode_switch(void);
 
 private:
     ros::NodeHandle nh_;
     ros::Subscriber pose_sub_;
+    ros::Subscriber joy_sub_;
     ros::Subscriber joints_vel_sub_;
 	std::vector<std::string> joint_names_;
     Eigen::VectorXd joint_values_;
+    Eigen::VectorXd joint_goal_prev_ = Eigen::VectorXd::Zero(6);
     ros::Publisher joints_vel_pub_;
     ros::Duration dt_ = ros::Duration(0.1); // 10 Hz
     ros::Time last_time_ = ros::Time::now();
-};
+    bool joy_touch_ = false;
+    bool joy_touch_prev_ = false;
+    bool joy_cont_touched_ = false;
+    bool joy_ever_touched_ = false;
+    double delta_trig_ = 0.1; //threshold to consider joystick being touched
+    bool is_3_axis_ = false;};
 
 JointCommander::JointCommander() : joint_values_(Eigen::VectorXd::Zero(6)), joint_names_({"j2n6s300_joint_1", "j2n6s300_joint_2", "j2n6s300_joint_3", "j2n6s300_joint_4", "j2n6s300_joint_5", "j2n6s300_joint_6"})
 {
     nh_ = ros::NodeHandle();
     pose_sub_ = nh_.subscribe("/wrapped_joint_states", QUEUE_LENGTH, &JointCommander::jointsCallback, this);
     joints_vel_sub_ = nh_.subscribe("/desired_joint_speeds", QUEUE_LENGTH, &JointCommander::jointsVelCallback, this);
+    joy_sub_ = nh_.subscribe("/joy", QUEUE_LENGTH, &JointCommander::joyCallback, this);
     joints_vel_pub_ = nh_.advertise<trajectory_msgs::JointTrajectory>("/j2n6s300_driver/trajectory_controller/command", QUEUE_LENGTH);
-    
+
+    // get rosparam 
+    nh_.param("is_3_axis", is_3_axis_, false);
+
     // sleep(10.0);
 
     moveit::planning_interface::MoveGroupInterface group("arm");
@@ -74,31 +88,42 @@ void JointCommander::jointsVelCallback(const kinova_msgs::JointVelocity& msg)
 	joints_vel_msg.header.stamp = ros::Time::now();
 	joints_vel_msg.joint_names.clear();
 	trajectory_msgs::JointTrajectoryPoint point;
+
+
 	for (int i=0; i< joint_names_.size(); i ++ )
 	{
-        ros::Time now = ros::Time::now();
-        double dt = (now - last_time_).toSec();
-        last_time_ = now;
+        // ros::Time now = ros::Time::now();
+        double dt = 0.01; //(now - last_time_).toSec();
+        // last_time_ = now;
 
 		joints_vel_msg.joint_names.push_back(joint_names_[i]);
-        point.positions.push_back(joint_values_[i] + dt*joint_speeds[i]);
-        point.velocities.push_back(joint_speeds[i]);
+        // point.positions.push_back(joint_values_[i] + dt*joint_speeds[i]);
+        // point.velocities.push_back(joint_speeds[i]);
 
-		// if(joy_touch_){ //if joystick is being touched right now 
-		// 	if(!joy_cont_touched_){ //if it wasn't being touched before, then update the joint goal from the current joint values
-		// 		joint_goal_prev_[i] = joint_values_[i] + dt*joints_vel_msg.values_(i);
-		// 		point.positions.push_back(joint_goal_prev_[i]); //and command a motion to that goal
-		// 	} else { //if it has been touched already and is still being touched, then don't update from current joint values, just add the current increment to the previous joint goal! We don't want goals to be affected by gravity
-		// 		point.positions.push_back(joint_goal_prev_[i] + dt*joints_vel_msg.values_(i));
-		// 		joint_goal_prev_[i] = joint_goal_prev_[i] + dt*joints_vel_msg.values_(i); // increment joint_goal_previous for the next iteration
-		// 	}
-		// } else if (joy_ever_touched_){ // if joystick has been released, just keep publishing whatever was the last goal 
-		// 	point.positions.push_back(joint_goal_prev_[i]);
-		// }
-	}
-	point.time_from_start = dt_;
-	joints_vel_msg.points.push_back(point);
-	joints_vel_pub_.publish(joints_vel_msg);
+        if(joy_touch_){ //if joystick is being touched right now 
+            if(!joy_cont_touched_){ //if it wasn't being touched before, then update the joint goal from the current joint values
+                joint_goal_prev_[i] = joint_values_[i] + dt*joint_speeds[i];
+                point.positions.push_back(joint_goal_prev_[i]); //and command a motion to that goal
+            } else { //if it has been touched already and is still being touched, then don't update from current joint values, just add the current increment to the previous joint goal! We don't want goals to be affected by gravity
+                point.positions.push_back(joint_goal_prev_[i] + dt*joint_speeds[i]);
+                joint_goal_prev_[i] = joint_goal_prev_[i] + dt*joint_speeds[i]; // increment joint_goal_previous for the next iteration
+            }
+        } else if (joy_ever_touched_){ // if joystick has been released, just keep publishing whatever was the last goal 
+            point.positions.push_back(joint_goal_prev_[i]);
+        }
+        else { // if joystick has never been touched, just keep publishing current joint values
+            point.positions.push_back(joint_values_[i]);
+        }
+        point.velocities.push_back(joint_speeds[i]);
+    }
+
+    point.time_from_start = dt_;
+    joints_vel_msg.points.push_back(point);
+
+    // ROS_INFO("Joystick touched: %d, ever touched: %d", joy_touch_, joy_ever_touched_);
+
+    joints_vel_pub_.publish(joints_vel_msg);
+
 
 }
 
@@ -116,13 +141,35 @@ void JointCommander::jointsCallback(const sensor_msgs::JointState& msg)
 					std::cout << "String not found." << std::endl;
 			}
 	}
-    std::cout << "Joint values: ";
-    for (int i=0; i< joint_names_.size(); i++){
-        std::cout << joint_names_[i] << ": " << joint_values_[i] << ", ";
-    }
-    std::cout << std::endl;
+    // std::cout << "Joint values: ";
+    // for (int i=0; i< joint_names_.size(); i++){
+    //     std::cout << joint_names_[i] << ": " << joint_values_[i] << ", ";
+    // }
+    // std::cout << std::endl;
+
 }
 
+void JointCommander::modeCallback(int mode)
+{
+    joy_ever_touched_ = false;
+}
+
+void JointCommander::joyCallback(const sensor_msgs::Joy& msg)
+{
+    if(std::abs(msg.axes[0])>=delta_trig_ || std::abs(msg.axes[1])>=delta_trig_ || (std::abs(msg.axes[2])>=delta_trig_ && is_3_axis_)){
+		joy_touch_ = true;
+		joy_ever_touched_ = true;
+		if (joy_touch_prev_){
+			joy_cont_touched_ = true;
+		} else{
+			joy_cont_touched_ = false;
+		}
+        joy_touch_prev_ = joy_touch_;
+	} else {
+        joy_touch_ = false;
+        joy_cont_touched_ = false;
+    }
+}
 
 int main(int argc, char **argv)
 {

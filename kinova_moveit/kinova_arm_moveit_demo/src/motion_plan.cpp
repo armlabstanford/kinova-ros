@@ -30,6 +30,10 @@ int main(int argc, char **argv)
   // of the group you would like to control and plan for.
   moveit::planning_interface::MoveGroupInterface group("arm");
 
+  // debug print
+  ROS_WARN("Reference frame: %s", group.getPlanningFrame().c_str());
+  ROS_WARN("End effector link: %s", group.getEndEffectorLink().c_str());
+
   // We will use the :planning_scene_interface:`PlanningSceneInterface`
   // class to deal directly with the world.
   moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
