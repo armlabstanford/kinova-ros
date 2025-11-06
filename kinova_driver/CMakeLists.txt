@@ -114,6 +114,10 @@ add_executable(kinova_interactive_control src/nodes/kinova_interactive_control.c
 add_dependencies(kinova_interactive_control ${catkin_EXPORTED_TARGETS})
 target_link_libraries(kinova_interactive_control ${catkin_LIBRARIES} kinova_driver)
 
+add_executable(move_fingers src/nodes/move_fingers.cpp)
+add_dependencies(move_fingers ${catkin_EXPORTED_TARGETS})
+target_link_libraries(move_fingers ${catkin_LIBRARIES} kinova_driver)
+
 #############
 ## Install ##
 #############
@@ -135,7 +139,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 
 ## Mark executables and/or libraries for installation
 install(TARGETS kinova_arm_driver kinova_tf_updater
-kinova_interactive_control kinova_driver
+kinova_interactive_control move_fingers kinova_driver
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
