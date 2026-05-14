@@ -65,12 +65,12 @@ private:
 
         kinova::FingerAngles angles;
         // only if joy is moved considerably
-        if (msg->axes[0] > -0.1 && msg->axes[0] < 0.1)
+        if (msg->axes[1] > -0.1 && msg->axes[1] < 0.1)
             return;
         
-        angles.Finger1 = finger_position_.Finger1 + 6800*(msg->axes[0])/5; // scale joystick [-1,1] to [0,6800]
-        angles.Finger2 = finger_position_.Finger2 + 6800*(msg->axes[0])/5; // scale joystick [-1,1] to [0,6800]
-        angles.Finger3 = finger_position_.Finger3 + 6800*(msg->axes[0])/5; // scale joystick [-1,1] to [0,6800]
+        angles.Finger1 = finger_position_.Finger1 - 6800*(msg->axes[1])/5; // scale joystick [-1,1] to [0,6800]
+        angles.Finger2 = finger_position_.Finger2 - 6800*(msg->axes[1])/5; // scale joystick [-1,1] to [0,6800]
+        angles.Finger3 = finger_position_.Finger3 - 6800*(msg->axes[1])/5; // scale joystick [-1,1] to [0,6800]
 
         // clip between 0 and 6800
         if (angles.Finger1 < 0)
